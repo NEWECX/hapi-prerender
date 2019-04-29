@@ -15,7 +15,7 @@ var internals = {};
 // we support _escaped_fragment_ and want to ensure people aren't
 // penalized for cloaking.
 internals.crawlerUserAgents = [
-  // 'googlebot',
+  'googlebot',
   // 'yahoo',
   // 'bingbot',
   'facebot',

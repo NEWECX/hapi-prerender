@@ -35,6 +35,7 @@ internals.crawlerUserAgents = [
 
 internals.extensionsToIgnore = [
   '.js',
+  '.json',
   '.css',
   '.xml',
   '.less',
@@ -104,7 +105,15 @@ internals.shouldShowPrerenderedPage = function (req) {
     return regexp.test(req.url.pathname);
   });
 
-  if (resource) { return false; }
+  //if blacklisted
+
+
+  var blacklisted = settings.blacklist.some(function (setting) {
+    var settingRegex = new RegExp(setting);
+    return settingRegex.test(req.url.pathname)
+  })
+
+  if (resource || blacklisted) { return false; }
 
   return isRequestingPrerenderedPage;
 };
@@ -121,9 +130,11 @@ exports.register = function (server, options, next) {
     token: process.env.PRERENDER_TOKEN,
     protocol: false,
     beforeRender: function (req, done) { done(); },
-    afterRender: function (req, resp) {}
+    afterRender: function (req, resp) {},
+    blacklist: [],
   }, options);
 
+  // blacklist:['/dist/', '/js/', 'json']
   function buildApiUrl(req) {
     var prerenderUrl = settings.serviceUrl;
     var forwardSlash = prerenderUrl.indexOf('/', prerenderUrl.length - 1) !== -1 ? '' : '/';

@@ -108,12 +108,12 @@ internals.shouldShowPrerenderedPage = function (req) {
   //if blacklisted
 
 
-  var blacklisted = settings.blacklist.some(function (setting) {
-    var settingRegex = new RegExp(setting);
-    return settingRegex.test(req.url.pathname)
-  })
+//   var blacklisted = settings.blacklist.some(function (setting) {
+//     var settingRegex = new RegExp(setting);
+//     return settingRegex.test(req.url.pathname)
+//   })
 
-  if (resource || blacklisted) { return false; }
+  if (resource) { return false; }
 
   return isRequestingPrerenderedPage;
 };

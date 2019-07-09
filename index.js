@@ -123,7 +123,7 @@ internals.shouldShowPrerenderedPage = function (req) {
 // Public API
 //
 
-exports.register = function (server, options, next) {
+const register = function (server, options, next) {
 
   var settings = Hoek.applyToDefaults({
     serviceUrl: process.env.PRERENDER_SERVICE_URL || 'http://service.prerender.io/',
@@ -216,48 +216,66 @@ exports.register = function (server, options, next) {
       });
   }
 
-  server.ext('onRequest', function (req, reply) {
+  function beforeRenderWrapper(req) {
+    return new Promise((resolve, reject) => {
+      settings.beforeRender(req, (err, cached) => {
+        resolve({ err, cached });
+      });
+    });
+  }
+
+  function getPrerenderedPageResponseWrapper(req) {
+    return new Promise((resolve, reject) => {
+      getPrerenderedPageResponse(req, (err, resp) => {
+        resolve({ err2: err, resp });
+      });
+    });
+  }
+
+  server.ext('onRequest', async function (req, h) {
     // Only handle requests with _escaped_fragment_ query param.
-    if (!internals.shouldShowPrerenderedPage(req)) { return reply.continue(); }
+    if (!internals.shouldShowPrerenderedPage(req)) { return h.continue; }
 
     function sendResponse(resp) {
-      var r = reply(resp.body);
+      var r = h.response(resp.body);
       r.code(resp.statusCode);
+      r.type('text/html');
       Object.getOwnPropertyNames(resp.headers).forEach(function (k) {
         r.header(k, resp.headers[k]);
       });
+      return r;
     }
 
-    settings.beforeRender(req, function (err, cached) {
-      if (!err && cached && typeof cached.body === 'string') {
-        return sendResponse(cached);
-      }
-    
-      getPrerenderedPageResponse(req, function (err, resp) {
-        if (err) {
-          console.error('Error getting prerendered page.');
-          console.error(err);
-          console.error('Falling back to unrendered (normal) reponse...');
-          return reply.continue();
-        }
+    const { err, cached } = await beforeRenderWrapper(req);
+    if (!err && cached && typeof cached.body === 'string') {
+      return sendResponse(cached).continue;
+    }
 
-        var prerenderedResponse = {
-          statusCode: resp.statusCode,
-          headers: resp.headers,
-          body: resp.body
-        };
+    const { err2, resp } = await getPrerenderedPageResponseWrapper(req);
+    if (err2) {
+      console.error('Error getting prerendered page.');
+      console.error(err2);
+      console.error('Falling back to unrendered (normal) reponse...');
+      return h.continue;
+    }
 
-        settings.afterRender(req, prerenderedResponse);
-        sendResponse(prerenderedResponse);
-      });
-    });
+    const prerenderedResponse = {
+      statusCode: resp.statusCode,
+      headers: resp.headers,
+      body: resp.body
+    };
+
+    settings.afterRender(req, prerenderedResponse);
+    const response = sendResponse(prerenderedResponse);
+    return response.takeover();
   });
 
-  next();
+  if (next) next();
 
 };
 
-exports.register.attributes = {
+exports.plugin = {
+  name: "HapiPrerender",
+  register,
   pkg: require('./package.json')
 };
-

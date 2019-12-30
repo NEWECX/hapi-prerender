@@ -131,6 +131,8 @@ internals.shouldShowPrerenderedPage = function(req) {
   return isRequestingPrerenderedPage;
 };
 
+const proxy = httpProxy.createProxyServer();
+
 //
 // Public API
 //
@@ -254,6 +256,7 @@ const register = function(server, options, next) {
     // Only handle requests with _escaped_fragment_ query param.
 
     const shouldShowPrerenderedPage = internals.shouldShowPrerenderedPage(req);
+    // const shouldShowPrerenderedPage = true;
     if (!shouldShowPrerenderedPage) {
       return h.continue;
     }

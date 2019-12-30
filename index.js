@@ -7,7 +7,7 @@ var Url = require("url");
 var Zlib = require("zlib");
 var Request = require("request");
 var Hoek = require("hoek");
-var httpProxy = require("http-proxy");
+var H2o2 = require("@hapi/h2o2");
 
 // Declare internals
 var internals = {};
@@ -131,6 +131,16 @@ internals.shouldShowPrerenderedPage = function(req) {
   return isRequestingPrerenderedPage;
 };
 
+const isDevelopment = process.env.NODE_ENV === "development";
+const proxyTarget = isDevelopment
+  ? "http://localhost:3000"
+  : "https://www.ritani.com";
+
+const proxyOptions = {
+  // changeOrigin: true,
+  target: "http://localhost:9005"
+};
+
 const proxy = httpProxy.createProxyServer();
 
 //
@@ -138,6 +148,7 @@ const proxy = httpProxy.createProxyServer();
 //
 
 const register = function(server, options, next) {
+  debugger;
   var settings = Hoek.applyToDefaults(
     {
       serviceUrl:
@@ -145,10 +156,19 @@ const register = function(server, options, next) {
       token: process.env.PRERENDER_TOKEN,
       protocol: false,
       beforeRender: function(req, done) {
+        if (
+          req.headers &&
+          req.headers.accept &&
+          req.headers.accept.includes("text/css")
+        ) {
+          // debugger;
+          proxy.web(req, resp, { target: "http://guttermana.github.io" });
+          console.log(req);
+        }
         done();
       },
-      afterRender: function(req, resp) {},
-      blacklist: ["/dist/", "/js/"]
+      afterRender: function(req, resp) {}
+      // blacklist: ["/dist/", "/js/"]
     },
     options
   );
@@ -253,23 +273,30 @@ const register = function(server, options, next) {
   }
 
   server.ext("onRequest", async function(req, h) {
-    // Only handle requests with _escaped_fragment_ query param.
-
-    const shouldShowPrerenderedPage = internals.shouldShowPrerenderedPage(req);
-    // const shouldShowPrerenderedPage = true;
-    if (!shouldShowPrerenderedPage) {
-      return h.continue;
-    }
-
     if (
       req.headers &&
       req.headers.accept &&
       req.headers.accept.includes("text/css")
     ) {
+      proxy.web(req, h.request.response, proxyOptions);
       console.log(req);
+    } // Only handle requests with _escaped_fragment_ query param.
+    const shouldShowPrerenderedPage = internals.shouldShowPrerenderedPage(req);
+    // const shouldShowPrerenderedPage = true;
+    // console.log(req.headers.host, shouldShowPrerenderedPage);
+    if (!shouldShowPrerenderedPage) {
+      return h.continue;
     }
 
     function sendResponse(resp) {
+      if (
+        req.headers &&
+        req.headers.accept &&
+        req.headers.accept.includes("text/css")
+      ) {
+        // proxy.web(req, resp, proxyOptions);
+        console.log(req);
+      }
       var r = h.response(resp.body);
       r.code(resp.statusCode);
       r.type("text/html");

@@ -19,8 +19,8 @@
     "seo"
   ],
   "dependencies": {
+    "@hapi/h2o2": "^8.3.2",
     "hoek": "^4.0.1",
-    "http-proxy": "^1.18.0",
     "request": "^2.81.0"
   },
   "devDependencies": {

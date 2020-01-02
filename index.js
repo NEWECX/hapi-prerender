@@ -278,7 +278,6 @@ const register = function(server, options, next) {
       req.headers.accept &&
       req.headers.accept.includes("text/css")
     ) {
-      proxy.web(req, h.request.response, proxyOptions);
       console.log(req);
     } // Only handle requests with _escaped_fragment_ query param.
     const shouldShowPrerenderedPage = internals.shouldShowPrerenderedPage(req);
